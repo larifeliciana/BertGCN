@@ -1,42 +1,18 @@
-import torch as th
-from transformers import AutoModel, AutoTokenizer
-import torch.nn.functional as F
-from utils import *
-import dgl
-import torch.utils.data as Data
-from ignite.engine import Events, create_supervised_evaluator, create_supervised_trainer, Engine
+from ignite.engine import Events, Engine
 from ignite.metrics import Accuracy, Loss
-import numpy as np
+import logging
 import os
-from datetime import datetime
+import shutil
 from sklearn.metrics import accuracy_score
-import argparse, shutil, logging
+import torch as th
+import torch.nn.functional as F
 from torch.optim import lr_scheduler
+import torch.utils.data as Data
+
+from args import *
 from model import BertClassifier
+from utils import *
 
-parser = argparse.ArgumentParser()
-parser.add_argument('--max_length', type=int, default=128, help='the input length for bert')
-parser.add_argument('--batch_size', type=int, default=128)
-parser.add_argument('--nb_epochs', type=int, default=60)
-parser.add_argument('--bert_lr', type=float, default=1e-4)
-parser.add_argument('--dataset', default='20ng', choices=['20ng', 'R8', 'R52', 'ohsumed', 'mr'])
-parser.add_argument('--bert_init', type=str, default='roberta-base',
-                    choices=['roberta-base', 'roberta-large', 'bert-base-uncased', 'bert-large-uncased'])
-parser.add_argument('--checkpoint_dir', default=None, help='checkpoint directory, [bert_init]_[dataset] if not specified')
-
-args = parser.parse_args()
-
-max_length = args.max_length
-batch_size = args.batch_size
-nb_epochs = args.nb_epochs
-bert_lr = args.bert_lr
-dataset = args.dataset
-bert_init = args.bert_init
-checkpoint_dir = args.checkpoint_dir
-if checkpoint_dir is None:
-    ckpt_dir = './checkpoint/{}_{}'.format(bert_init, dataset)
-else:
-    ckpt_dir = checkpoint_dir
 
 os.makedirs(ckpt_dir, exist_ok=True)
 shutil.copy(os.path.basename(__file__), ckpt_dir)
@@ -56,7 +32,7 @@ cpu = th.device('cpu')
 gpu = th.device('cuda:0')
 
 logger.info('arguments:')
-logger.info(str(args))
+logger.info(f'{bert_init} {nb_epochs} {batch_size} {max_length}')
 logger.info('checkpoints will be saved in {}'.format(ckpt_dir))
 
 # Data Preprocess

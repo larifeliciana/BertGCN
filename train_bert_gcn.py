@@ -1,61 +1,20 @@
-import torch as th
-from transformers import AutoModel, AutoTokenizer
-import torch.nn.functional as F
-from utils import *
 import dgl
-import torch.utils.data as Data
-from ignite.engine import Events, create_supervised_evaluator, create_supervised_trainer, Engine
+from ignite.engine import Events, Engine
 from ignite.metrics import Accuracy, Loss
-from sklearn.metrics import accuracy_score
-import numpy as np
+import logging
 import os
 import shutil
-import argparse
+from sklearn.metrics import accuracy_score
 import sys
-import logging
-from datetime import datetime
+import torch as th
+import torch.nn.functional as F
+import torch.utils.data as Data
 from torch.optim import lr_scheduler
+
+from args import *
 from model import BertGCN, BertGAT
+from utils import *
 
-parser = argparse.ArgumentParser()
-parser.add_argument('--max_length', type=int, default=128, help='the input length for bert')
-parser.add_argument('--batch_size', type=int, default=64)
-parser.add_argument('-m', '--m', type=float, default=0.7, help='the factor balancing BERT and GCN prediction')
-parser.add_argument('--nb_epochs', type=int, default=50)
-parser.add_argument('--bert_init', type=str, default='roberta-base',
-                    choices=['roberta-base', 'roberta-large', 'bert-base-uncased', 'bert-large-uncased'])
-parser.add_argument('--pretrained_bert_ckpt', default=None)
-parser.add_argument('--dataset', default='20ng', choices=['20ng', 'R8', 'R52', 'ohsumed', 'mr'])
-parser.add_argument('--checkpoint_dir', default=None, help='checkpoint directory, [bert_init]_[gcn_model]_[dataset] if not specified')
-parser.add_argument('--gcn_model', type=str, default='gcn', choices=['gcn', 'gat'])
-parser.add_argument('--gcn_layers', type=int, default=2)
-parser.add_argument('--n_hidden', type=int, default=200, help='the dimension of gcn hidden layer, the dimension for gat is n_hidden * heads')
-parser.add_argument('--heads', type=int, default=8, help='the number of attentionn heads for gat')
-parser.add_argument('--dropout', type=float, default=0.5)
-parser.add_argument('--gcn_lr', type=float, default=1e-3)
-parser.add_argument('--bert_lr', type=float, default=1e-5)
-
-args = parser.parse_args()
-max_length = args.max_length
-batch_size = args.batch_size
-m = args.m
-nb_epochs = args.nb_epochs
-bert_init = args.bert_init
-pretrained_bert_ckpt = args.pretrained_bert_ckpt
-dataset = args.dataset
-checkpoint_dir = args.checkpoint_dir
-gcn_model = args.gcn_model
-gcn_layers = args.gcn_layers
-n_hidden = args.n_hidden
-heads = args.heads
-dropout = args.dropout
-gcn_lr = args.gcn_lr
-bert_lr = args.bert_lr
-
-if checkpoint_dir is None:
-    ckpt_dir = './checkpoint/{}_{}_{}'.format(bert_init, gcn_model, dataset)
-else:
-    ckpt_dir = checkpoint_dir
 os.makedirs(ckpt_dir, exist_ok=True)
 shutil.copy(os.path.basename(__file__), ckpt_dir)
 
@@ -74,7 +33,7 @@ cpu = th.device('cpu')
 gpu = th.device('cuda:0')
 
 logger.info('arguments:')
-logger.info(str(args))
+logger.info(f'{gcn_model} {bert_init} {nb_epochs} {batch_size} {max_length}')
 logger.info('checkpoints will be saved in {}'.format(ckpt_dir))
 # Model
 
